@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.integrate as integrate
 
 
 class Reactor:
@@ -37,16 +38,9 @@ class PlugFlow(Reactor):
     def __init__(self, order_of_reaction, kinetic_constant):
         super().__init__("Plug Flow", order_of_reaction, kinetic_constant)
 
-    def residence_time(self, concentration):
-        # Rate law for plug flow reactor
-        return self.kinetic_constant * (concentration**self.order_of_reaction)
-
-
-class StirredTank(Reactor):
-    def __init__(self, order_of_reaction, kinetic_constant):
-        super().__init__("Stirred Tank", order_of_reaction, kinetic_constant)
-
-    def residence_time(self, output_conversion, input_concentration, input_conversion):
+    def residence_time(
+        self, output_conversion, input_concentration, input_conversion, epsilon
+    ):
         # Redifinition of variable for better manipulation
         n = self.order_of_reaction
         k = self.kinetic_constant
@@ -54,25 +48,29 @@ class StirredTank(Reactor):
         Xaf = output_conversion
         Xai = input_conversion
 
-        return (Ca0 * (Xaf - Xai)) / (k * (Ca0 * (1 - Xaf)) ** n)
+        integral, _ = integrate.quad(
+            lambda Xa: ((1 + epsilon * Xa) / (1 - Xa)) ** n,
+            Xai,
+            Xaf,
+        )
+
+        return (1 / (k * Ca0 ** (n - 1))) * integral
 
 
-# Example usage
-# plug_flow_reactor = PlugFlow(order_of_reaction=2, kinetic_constant=0.1)
-my_reactor = StirredTank(order_of_reaction=0.25, kinetic_constant=0.05)
+class StirredTank(Reactor):
+    def __init__(self, order_of_reaction, kinetic_constant):
+        super().__init__("Stirred Tank", order_of_reaction, kinetic_constant)
 
-residence_time = my_reactor.residence_time(
-    output_conversion=0.8,
-    input_concentration=10,
-    input_conversion=0.25,
-)
+    def residence_time(
+        self, output_conversion, input_concentration, input_conversion, epsilon
+    ):
+        # Redifinition of variable for better manipulation
+        n = self.order_of_reaction
+        k = self.kinetic_constant
+        Ca0 = input_concentration
+        Xaf = output_conversion
+        Xai = input_conversion
 
-volume = my_reactor.get_volume(
-    volumetric_flow=10,
-    output_conversion=0.8,
-    input_concentration=10,
-    input_conversion=0.25,
-)
-
-print(f"Residence time: {residence_time}")
-print(f"Reactor volume: {volume}")
+        return (1 / (k * Ca0 ** (n - 1))) * (
+            ((Xaf * ((1 + epsilon * Xaf) ** n) - Xai)) / ((1 - Xaf) ** n)
+        )
