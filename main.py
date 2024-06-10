@@ -1,34 +1,69 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import ScalarFormatter
 
-import reaction_kinetics.reactors as rk
+from reaction_kinetics.reactor import PlugFlow, StirredTank
+
+# Constants
+k = 0.1
+Ca0 = 50
+Xai = 0
 
 # Example usage
-Xa_o = np.linspace(0, 1, 20)
-Xa_i = 0
-Ca_i = 10
-n = np.linspace(0.5, 1.5, 5)
-k = 0.01
+orders = [0.25, 1, 2]
+conversions = np.linspace(0.01, 0.99, 100)
+fractional_change = [2, 1, 0, -0.5, -0.66]
 
-plt.figure(figsize=(8, 6))
 
-for order in n:
+plt.figure(figsize=(6, 6))  # Start plot
 
-    tau = rk.stirred_tank(Xa_o, Xa_i, Ca_i, order, k)
 
-    plt.plot(Xa_o, tau, label=f"n = {order}")
+for n in orders:
+    print(f"n = {n}")
+    # Define the reactors
+    reactor1 = StirredTank(order_of_reaction=n, kinetic_constant=k)
+    reactor2 = PlugFlow(order_of_reaction=n, kinetic_constant=k)
 
-plt.xlabel("Ca (Molar Concentration of A)")
-plt.ylabel("tau (Residence Time)")
-plt.title("Residence Time vs. Molar Concentration of A")
+    residence_time_1 = np.array(
+        [reactor1.residence_time(Xa, Ca0, Xai, 0) for Xa in conversions]
+    )
+    print(residence_time_1)
+    residence_time_2 = np.array(
+        [reactor2.residence_time(Xa, Ca0, Xai, 0) for Xa in conversions]
+    )
+
+    tau_ratios = (residence_time_1) / (residence_time_2)
+
+    plt.plot((1 - conversions), tau_ratios, label=f"n = {n}")
+    color = plt.gca().lines[-1].get_color()  # Get color of the last line
+
+    # plot with fractional change
+    for ea in fractional_change:
+        print(f"\tea = {ea}")
+        residence_time_1 = np.array(
+            [reactor1.residence_time(Xa, Ca0, Xai, epsilon=ea) for Xa in conversions]
+        )
+        print(residence_time_1)
+        residence_time_2 = np.array(
+            [reactor2.residence_time(Xa, Ca0, Xai, epsilon=ea) for Xa in conversions]
+        )
+
+        ea_ratios = (residence_time_1) / (residence_time_2)
+
+        plt.plot((1 - conversions), ea_ratios, linestyle="--", color=color)
+
+# Set labels
+plt.xlabel(r"$(1-X_A)$", fontsize=14)
+plt.ylabel(r"${\tau_{CSTR}}/{\tau_{PFR}}$", fontsize=14)
+# Set axis to logarithmic scale
+plt.yscale("log")
+plt.xscale("log")
+# Disable scientific notation for tick labels
+plt.gca().yaxis.set_major_formatter(ScalarFormatter())
+plt.gca().xaxis.set_major_formatter(ScalarFormatter())
+# Set grid
+plt.grid(True, which="both", linestyle="--", linewidth=0.5)
+# Set legend
 plt.legend()
-plt.grid(True)
+# Show
 plt.show()
-
-
-## stirred_tank.volume
-## stirred_tank.flow
-## stirred:tank.conversion
-
-## rx = reactor(type,kinetic)
-## rx.volume =
